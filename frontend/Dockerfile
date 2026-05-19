@@ -1,6 +1,7 @@
 # ─── Stage 1: build React app ─────────────────────────────────────────────────
 # Forzar linux/amd64 explícitamente (Mac M5 Pro es ARM64, Fargate corre x86_64)
-FROM --platform=linux/amd64 node:20-alpine AS builder
+# Usando ECR Public para evitar Docker Hub rate limits en CodeBuild
+FROM --platform=linux/amd64 public.ecr.aws/docker/library/node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -23,7 +24,7 @@ COPY . .
 RUN npm run build
 
 # ─── Stage 2: serve with Nginx ────────────────────────────────────────────────
-FROM --platform=linux/amd64 nginx:1.27-alpine AS runtime
+FROM --platform=linux/amd64 public.ecr.aws/nginx/nginx:1.27-alpine AS runtime
 
 # Copiar build y config de nginx
 COPY --from=builder /app/build /usr/share/nginx/html

@@ -1,12 +1,13 @@
 # ─── Stage 1: dependencies ────────────────────────────────────────────────────
 # Forzar linux/amd64 explícitamente (Mac M5 Pro es ARM64, Fargate corre x86_64)
-FROM --platform=linux/amd64 node:20-alpine AS deps
+# Usando ECR Public para evitar Docker Hub rate limits en CodeBuild
+FROM --platform=linux/amd64 public.ecr.aws/docker/library/node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --only=production
 
 # ─── Stage 2: runtime ─────────────────────────────────────────────────────────
-FROM --platform=linux/amd64 node:20-alpine AS runtime
+FROM --platform=linux/amd64 public.ecr.aws/docker/library/node:20-alpine AS runtime
 WORKDIR /app
 
 # Instalar dumb-init para manejo correcto de señales en containers
