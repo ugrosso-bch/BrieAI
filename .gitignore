@@ -109,7 +109,10 @@ backend/.env.bak
 # CloudFormation outputs
 cloudformation-outputs.json
 
-# Lambda packaging artifacts
+# Large media files
+*.mov
+*.mp4
+*.avi
 backend/lambda-functions/pymysql/
 backend/lambda-functions/psycopg2/
 backend/lambda-functions/lambda_function.py
