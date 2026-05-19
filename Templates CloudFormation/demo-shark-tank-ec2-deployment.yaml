@@ -1,0 +1,389 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Despliegue de Demo Shark Tank en EC2 con configuración automática'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'demo-shark-tank'
+    Description: 'Nombre del proyecto'
+  
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Entorno de despliegue'
+
+  InstanceType:
+    Type: String
+    Default: 't3.medium'
+    AllowedValues: ['t3.micro', 't3.small', 't3.medium', 't3.large']
+    Description: 'Tipo de instancia EC2'
+
+  KeyPairName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: 'Nombre del Key Pair para acceso SSH'
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: 'ID de la VPC donde desplegar'
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'ID de la subnet pública donde desplegar'
+
+  AllowedCIDR:
+    Type: String
+    Default: '0.0.0.0/0'
+    Description: 'CIDR permitido para acceso a la aplicación'
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-0c02fb55956c7d316  # Amazon Linux 2023
+    us-west-2:
+      AMI: ami-008fe2fc65df48dac  # Amazon Linux 2023
+    eu-west-1:
+      AMI: ami-01dd271720c1ba44f  # Amazon Linux 2023
+
+Resources:
+  # Security Group específico para esta instancia
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-instance-sg-${Environment}'
+      GroupDescription: 'Security group para instancia EC2 de Demo Shark Tank'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: !Ref AllowedCIDR
+          Description: 'React frontend'
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          CidrIp: !Ref AllowedCIDR
+          Description: 'Node.js backend API'
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref AllowedCIDR
+          Description: 'SSH access'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref AllowedCIDR
+          Description: 'HTTP'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedCIDR
+          Description: 'HTTPS'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Instancia EC2
+  ApplicationInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', AMI]
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyPairName
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      IamInstanceProfile: 
+        Fn::ImportValue: !Sub '${ProjectName}-${Environment}-InstanceProfileArn'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          yum update -y
+          
+          # Instalar Node.js 18
+          curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+          yum install -y nodejs
+          
+          # Instalar Git
+          yum install -y git
+          
+          # Instalar PM2 globalmente
+          npm install -g pm2
+          
+          # Crear usuario para la aplicación
+          useradd -m -s /bin/bash demoapp
+          
+          # Crear directorio de la aplicación
+          mkdir -p /opt/demo-shark-tank
+          chown demoapp:demoapp /opt/demo-shark-tank
+          
+          # Clonar o descargar el código (aquí asumo que tienes un repositorio)
+          # git clone https://github.com/tu-usuario/demo-shark-tank.git /opt/demo-shark-tank
+          
+          # Por ahora, crear estructura básica
+          cd /opt/demo-shark-tank
+          
+          # Crear archivo de configuración de entorno
+          cat > /opt/demo-shark-tank/.env << EOF
+          AWS_REGION=${AWS::Region}
+          S3_BUCKET_NAME=$(aws ssm get-parameter --name "/${ProjectName}/${Environment}/s3/bucket-name" --query "Parameter.Value" --output text --region ${AWS::Region})
+          BEDROCK_MODEL_ID=$(aws ssm get-parameter --name "/${ProjectName}/${Environment}/bedrock/model-id" --query "Parameter.Value" --output text --region ${AWS::Region})
+          PORT=3001
+          NODE_ENV=production
+          EOF
+          
+          # Cambiar propietario
+          chown -R demoapp:demoapp /opt/demo-shark-tank
+          
+          # Crear servicio systemd para el backend
+          cat > /etc/systemd/system/demo-shark-tank-backend.service << EOF
+          [Unit]
+          Description=Demo Shark Tank Backend
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=demoapp
+          WorkingDirectory=/opt/demo-shark-tank/backend
+          Environment=NODE_ENV=production
+          EnvironmentFile=/opt/demo-shark-tank/.env
+          ExecStart=/usr/bin/node server.js
+          Restart=always
+          RestartSec=10
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Crear servicio systemd para el frontend (usando serve)
+          npm install -g serve
+          
+          cat > /etc/systemd/system/demo-shark-tank-frontend.service << EOF
+          [Unit]
+          Description=Demo Shark Tank Frontend
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=demoapp
+          WorkingDirectory=/opt/demo-shark-tank/frontend/build
+          ExecStart=/usr/bin/serve -s . -l 3000
+          Restart=always
+          RestartSec=10
+          
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+          
+          # Instalar nginx como proxy reverso
+          yum install -y nginx
+          
+          # Configurar nginx
+          cat > /etc/nginx/conf.d/demo-shark-tank.conf << EOF
+          server {
+              listen 80;
+              server_name _;
+              
+              # Frontend
+              location / {
+                  proxy_pass http://localhost:3000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade \$http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+                  proxy_cache_bypass \$http_upgrade;
+              }
+              
+              # Backend API
+              location /api {
+                  proxy_pass http://localhost:3001;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade \$http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host \$host;
+                  proxy_set_header X-Real-IP \$remote_addr;
+                  proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto \$scheme;
+                  proxy_cache_bypass \$http_upgrade;
+              }
+          }
+          EOF
+          
+          # Habilitar y iniciar nginx
+          systemctl enable nginx
+          systemctl start nginx
+          
+          # Crear script de despliegue
+          cat > /opt/demo-shark-tank/deploy.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "Iniciando despliegue de Demo Shark Tank..."
+          
+          # Ir al directorio de la aplicación
+          cd /opt/demo-shark-tank
+          
+          # Instalar dependencias del backend
+          if [ -d "backend" ]; then
+              cd backend
+              npm install --production
+              cd ..
+          fi
+          
+          # Construir y preparar frontend
+          if [ -d "frontend" ]; then
+              cd frontend
+              npm install
+              npm run build
+              cd ..
+          fi
+          
+          # Recargar servicios
+          systemctl daemon-reload
+          
+          # Iniciar servicios si existen los directorios
+          if [ -d "backend" ]; then
+              systemctl enable demo-shark-tank-backend
+              systemctl restart demo-shark-tank-backend
+          fi
+          
+          if [ -d "frontend/build" ]; then
+              systemctl enable demo-shark-tank-frontend
+              systemctl restart demo-shark-tank-frontend
+          fi
+          
+          # Reiniciar nginx
+          systemctl restart nginx
+          
+          echo "Despliegue completado!"
+          EOF
+          
+          chmod +x /opt/demo-shark-tank/deploy.sh
+          chown demoapp:demoapp /opt/demo-shark-tank/deploy.sh
+          
+          # Instalar CloudWatch agent
+          yum install -y amazon-cloudwatch-agent
+          
+          # Configurar CloudWatch agent
+          cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << EOF
+          {
+              "logs": {
+                  "logs_collected": {
+                      "files": {
+                          "collect_list": [
+                              {
+                                  "file_path": "/var/log/messages",
+                                  "log_group_name": "${ProjectName}-${Environment}-system",
+                                  "log_stream_name": "{instance_id}-messages"
+                              },
+                              {
+                                  "file_path": "/var/log/nginx/access.log",
+                                  "log_group_name": "${ProjectName}-${Environment}-nginx",
+                                  "log_stream_name": "{instance_id}-access"
+                              },
+                              {
+                                  "file_path": "/var/log/nginx/error.log",
+                                  "log_group_name": "${ProjectName}-${Environment}-nginx",
+                                  "log_stream_name": "{instance_id}-error"
+                              }
+                          ]
+                      }
+                  }
+              },
+              "metrics": {
+                  "namespace": "${ProjectName}/${Environment}",
+                  "metrics_collected": {
+                      "cpu": {
+                          "measurement": ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user", "cpu_usage_system"],
+                          "metrics_collection_interval": 60
+                      },
+                      "disk": {
+                          "measurement": ["used_percent"],
+                          "metrics_collection_interval": 60,
+                          "resources": ["*"]
+                      },
+                      "mem": {
+                          "measurement": ["mem_used_percent"],
+                          "metrics_collection_interval": 60
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          # Iniciar CloudWatch agent
+          /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+              -a fetch-config \
+              -m ec2 \
+              -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json \
+              -s
+          
+          # Crear archivo de estado
+          echo "Instance setup completed at $(date)" > /opt/demo-shark-tank/setup-complete.txt
+          
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-instance-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Elastic IP para la instancia
+  InstanceEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      InstanceId: !Ref ApplicationInstance
+      Tags:
+        - Key: Name
+          Value: !Sub '${ProjectName}-eip-${Environment}'
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  InstanceId:
+    Description: 'ID de la instancia EC2'
+    Value: !Ref ApplicationInstance
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-InstanceId'
+
+  InstancePublicIP:
+    Description: 'IP pública de la instancia'
+    Value: !Ref InstanceEIP
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-PublicIP'
+
+  InstancePrivateIP:
+    Description: 'IP privada de la instancia'
+    Value: !GetAtt ApplicationInstance.PrivateIp
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-PrivateIP'
+
+  ApplicationURL:
+    Description: 'URL de la aplicación'
+    Value: !Sub 'http://${InstanceEIP}'
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ApplicationURL'
+
+  SSHCommand:
+    Description: 'Comando SSH para conectarse a la instancia'
+    Value: !Sub 'ssh -i ${KeyPairName}.pem ec2-user@${InstanceEIP}'
+
+  DeploymentInstructions:
+    Description: 'Instrucciones para desplegar la aplicación'
+    Value: !Sub |
+      1. Conectarse via SSH: ssh -i ${KeyPairName}.pem ec2-user@${InstanceEIP}
+      2. Subir el código a /opt/demo-shark-tank/
+      3. Ejecutar: sudo /opt/demo-shark-tank/deploy.sh
+      4. Acceder a la aplicación en: http://${InstanceEIP}

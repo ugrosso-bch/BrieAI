@@ -1,0 +1,89 @@
+.App {
+  min-height: 100vh;
+  background-color: var(--color-beige);
+}
+
+/* Loading screen */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 1.2rem;
+  color: var(--color-black);
+}
+
+/* Auth required screen */
+.auth-required {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: var(--color-beige);
+  padding: 2rem;
+}
+
+.auth-required h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--color-black);
+}
+
+.auth-required h1::after {
+  content: '';
+  display: block;
+  width: 100px;
+  height: 4px;
+  background: var(--color-violet);
+  margin: 1rem auto;
+  border-radius: 2px;
+}
+
+.auth-required p {
+  font-size: 1.2rem;
+  color: var(--color-black);
+  margin-bottom: 2rem;
+  opacity: 0.8;
+}
+
+.auth-button {
+  padding: 1rem 2rem;
+  background: var(--color-violet);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(171, 160, 251, 0.3);
+}
+
+.auth-button:hover {
+  background: #9b8dfb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(171, 160, 251, 0.4);
+}
+
+/* Estilos específicos para la aplicación */
+.main-content {
+  flex: 1;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .main-content {
+    padding: var(--spacing-md);
+  }
+  
+  .auth-required h1 {
+    font-size: 2rem;
+  }
+  
+  .auth-required p {
+    font-size: 1rem;
+  }
+}

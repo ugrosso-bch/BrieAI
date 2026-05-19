@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'SNS Topic para notificaciones de Demo Shark Tank'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Entorno de despliegue
+
+Resources:
+  # SNS Topic para notificaciones
+  NotificationsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub 'DemoSharkTankNotifications-${Environment}'
+      DisplayName: 'Demo Shark Tank Notifications'
+      
+  # IAM Role para la aplicación
+  NotificationsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'DemoSharkTank-SNS-Role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SNSPublishPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                  - sns:ListSubscriptionsByTopic
+                  - sns:CreateTopic
+                Resource: !Ref NotificationsTopic
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+
+  # Instance Profile para EC2
+  NotificationsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref NotificationsRole
+
+Outputs:
+  TopicArn:
+    Description: 'ARN del topic SNS para notificaciones'
+    Value: !Ref NotificationsTopic
+    Export:
+      Name: !Sub '${AWS::StackName}-TopicArn'
+      
+  TopicName:
+    Description: 'Nombre del topic SNS'
+    Value: !GetAtt NotificationsTopic.TopicName
+    Export:
+      Name: !Sub '${AWS::StackName}-TopicName'
+      
+  RoleArn:
+    Description: 'ARN del rol IAM para SNS'
+    Value: !GetAtt NotificationsRole.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-RoleArn'
+      
+  InstanceProfileArn:
+    Description: 'ARN del Instance Profile'
+    Value: !GetAtt NotificationsInstanceProfile.Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-InstanceProfileArn'

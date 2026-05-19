@@ -1,0 +1,284 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Infraestructura para Demo Shark Tank - S3, IAM roles y configuración de Bedrock'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: 'brieai'
+    Description: 'Nombre del proyecto para etiquetado de recursos'
+  
+  Environment:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['dev', 'staging', 'prod']
+    Description: 'Entorno de despliegue'
+  
+  VpcId:
+    Type: String
+    Default: 'vpc-044ec1f953de9cf3c'
+    Description: 'ID de la VPC a utilizar'
+
+Resources:
+  # S3 Bucket para Base de Conocimiento
+  KnowledgeBaseBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ProjectName}-knowledge-base-${Environment}-${AWS::AccountId}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteIncompleteMultipartUploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+          - Id: TransitionToIA
+            Status: Enabled
+            Transition:
+              StorageClass: STANDARD_IA
+              TransitionInDays: 30
+          - Id: TransitionToGlacier
+            Status: Enabled
+            Transition:
+              StorageClass: GLACIER
+              TransitionInDays: 90
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+        - Key: Purpose
+          Value: 'Knowledge Base Storage'
+
+  # IAM Role para la aplicación
+  ApplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-application-role-${Environment}'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Policy para acceso a S3
+  S3AccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-s3-access-policy-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - s3:GetObjectVersion
+              - s3:DeleteObjectVersion
+            Resource:
+              - !Sub 'arn:aws:s3:::${KnowledgeBaseBucket}/*'
+              - !Sub 'arn:aws:s3:::${KnowledgeBaseBucket}'
+          - Effect: Allow
+            Action:
+              - s3:ListAllMyBuckets
+              - s3:GetBucketLocation
+            Resource: '*'
+      Roles:
+        - !Ref ApplicationRole
+
+  # Policy para acceso a Bedrock
+  BedrockAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub '${ProjectName}-bedrock-access-policy-${Environment}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+              - bedrock:ListFoundationModels
+              - bedrock:GetFoundationModel
+            Resource:
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0'
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0'
+              - !Sub 'arn:aws:bedrock:${AWS::Region}::foundation-model/anthropic.claude-instant-v1'
+          - Effect: Allow
+            Action:
+              - bedrock:ListFoundationModels
+            Resource: '*'
+      Roles:
+        - !Ref ApplicationRole
+
+  # Instance Profile para EC2
+  ApplicationInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${ProjectName}-instance-profile-${Environment}'
+      Roles:
+        - !Ref ApplicationRole
+
+  # Security Group para la aplicación
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Security group para la aplicacion BrieAI'
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+          Description: 'React frontend'
+        - IpProtocol: tcp
+          FromPort: 3001
+          ToPort: 3001
+          CidrIp: 0.0.0.0/0
+          Description: 'Node.js backend API'
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+          Description: 'SSH access'
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTP'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: 'HTTPS'
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: 'All outbound traffic'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # CloudWatch Log Group para la aplicación
+  ApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/application/${ProjectName}-${Environment}'
+      RetentionInDays: 30
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Parameter Store para configuración
+  BedrockModelIdParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/${Environment}/bedrock/model-id'
+      Type: String
+      Value: 'anthropic.claude-3-sonnet-20240229-v1:0'
+      Description: 'ID del modelo de Bedrock a utilizar'
+      Tags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+
+  S3BucketNameParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/${Environment}/s3/bucket-name'
+      Type: String
+      Value: !Ref KnowledgeBaseBucket
+      Description: 'Nombre del bucket S3 para base de conocimiento'
+      Tags:
+        Project: !Ref ProjectName
+        Environment: !Ref Environment
+
+  # SNS Topic para notificaciones (opcional)
+  NotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${ProjectName}-notifications-${Environment}'
+      DisplayName: 'BrieAI Notifications'
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectName
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  KnowledgeBaseBucketName:
+    Description: 'Nombre del bucket S3 para base de conocimiento'
+    Value: !Ref KnowledgeBaseBucket
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-KnowledgeBaseBucket'
+
+  KnowledgeBaseBucketArn:
+    Description: 'ARN del bucket S3 para base de conocimiento'
+    Value: !GetAtt KnowledgeBaseBucket.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-KnowledgeBaseBucketArn'
+
+  ApplicationRoleArn:
+    Description: 'ARN del rol IAM para la aplicación'
+    Value: !GetAtt ApplicationRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-ApplicationRoleArn'
+
+  ApplicationInstanceProfileArn:
+    Description: 'ARN del instance profile para EC2'
+    Value: !GetAtt ApplicationInstanceProfile.Arn
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-InstanceProfileArn'
+
+  SecurityGroupId:
+    Description: 'ID del Security Group para la aplicación'
+    Value: !Ref ApplicationSecurityGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-SecurityGroupId'
+
+  BedrockModelId:
+    Description: 'ID del modelo de Bedrock configurado'
+    Value: !Ref BedrockModelIdParameter
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-BedrockModelId'
+
+  LogGroupName:
+    Description: 'Nombre del CloudWatch Log Group'
+    Value: !Ref ApplicationLogGroup
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-LogGroupName'
+
+  NotificationTopicArn:
+    Description: 'ARN del SNS Topic para notificaciones'
+    Value: !Ref NotificationTopic
+    Export:
+      Name: !Sub '${ProjectName}-${Environment}-NotificationTopicArn'

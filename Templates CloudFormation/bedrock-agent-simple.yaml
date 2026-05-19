@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Bedrock Agent básico para Demo Shark Tank (sin Lambda functions)'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    Description: Environment name
+  
+  KnowledgeBaseId:
+    Type: String
+    Default: NZHNXOPXFT
+    Description: ID de la Knowledge Base existente
+
+Resources:
+  # IAM Role para el Agent
+  BedrockAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${Environment}-sharktank-bedrock-agent-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+      Policies:
+        - PolicyName: BedrockAgentPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:RetrieveAndGenerate
+                  - bedrock:Retrieve
+                Resource: '*'
+      Tags:
+        - Key: Owner
+          Value: ugrosso
+        - Key: EOL
+          Value: '2025/12/12'
+
+  # Bedrock Agent (solo con Knowledge Base)
+  SharkTankAgent:
+    Type: AWS::Bedrock::Agent
+    Properties:
+      AgentName: !Sub '${Environment}-sharktank-agent'
+      Description: 'Agente inteligente para Demo Shark Tank con base de conocimiento'
+      FoundationModel: 'anthropic.claude-3-sonnet-20240229-v1:0'
+      Instruction: |
+        Eres un asistente inteligente para Demo Shark Tank, una plataforma de análisis de datos.
+        
+        Tienes acceso a una base de conocimiento con documentos y archivos subidos por usuarios.
+        
+        Capacidades:
+        - Buscar información en documentos de la base de conocimiento
+        - Proporcionar análisis y insights basados en los documentos
+        - Responder preguntas usando el contexto de los archivos subidos
+        - Ayudar con análisis de datos y consultas
+        
+        Siempre:
+        - Sé preciso y profesional
+        - Explica tus análisis de forma clara
+        - Usa la base de conocimiento para proporcionar respuestas contextuales
+        - Si no tienes información suficiente, indícalo claramente
+      AgentResourceRoleArn: !GetAtt BedrockAgentRole.Arn
+      KnowledgeBases:
+        - KnowledgeBaseId: !Ref KnowledgeBaseId
+          Description: 'Base de conocimiento con documentos subidos'
+          KnowledgeBaseState: ENABLED
+      Tags:
+        Owner: ugrosso
+        EOL: '2025/12/12'
+
+Outputs:
+  AgentId:
+    Description: 'ID del Bedrock Agent creado'
+    Value: !Ref SharkTankAgent
+    Export:
+      Name: !Sub '${Environment}-sharktank-agent-id'
+  
+  AgentArn:
+    Description: 'ARN del Bedrock Agent'
+    Value: !Sub 'arn:aws:bedrock:${AWS::Region}:${AWS::AccountId}:agent/${SharkTankAgent}'
+    Export:
+      Name: !Sub '${Environment}-sharktank-agent-arn'

@@ -1,0 +1,20 @@
+{
+  "short_name": "BrieAI",
+  "name": "BrieAI - Plataforma de Análisis Inteligente",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "favicon-150x150.png",
+      "type": "image/png",
+      "sizes": "150x150"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#ABA0FB",
+  "background_color": "#D4D0CB"
+}
