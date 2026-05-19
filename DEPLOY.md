@@ -102,15 +102,7 @@ Una vez creado, la app estará en:
 
 ---
 
-### 5. Crear los SSM Parameters para CodeBuild
-
-```bash
-bash "Templates Scripts/setup-ssm-params.sh"
-```
-
----
-
-### 6. Crear la GitHub Connection en CodeStar
+### 5. Crear la GitHub Connection en CodeStar
 
 1. Ir a **AWS Developer Tools → Connections**
 2. Crear una conexión a GitHub
@@ -119,7 +111,7 @@ bash "Templates Scripts/setup-ssm-params.sh"
 
 ---
 
-### 7. Desplegar el pipeline CI/CD
+### 6. Desplegar el pipeline CI/CD
 
 ```bash
 GITHUB_CONNECTION_ARN="arn:aws:codestar-connections:us-east-1:250935839247:connection/XXXXX"

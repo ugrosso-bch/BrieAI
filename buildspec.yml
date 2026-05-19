@@ -10,10 +10,10 @@ env:
     AWS_ACCOUNT_ID: "250935839247"
     BACKEND_REPO: brieai-backend
     FRONTEND_REPO: brieai-frontend
-  parameter-store:
-    # Variables no-secretas tomadas de SSM Parameter Store
-    REACT_APP_COGNITO_USER_POOL_ID: /brieai/cognito/user_pool_id
-    REACT_APP_COGNITO_CLIENT_ID: /brieai/cognito/client_id
+  secrets-manager:
+    # Todas las variables de configuración vienen del mismo secret
+    REACT_APP_COGNITO_USER_POOL_ID: brieai/config/production:COGNITO_USER_POOL_ID
+    REACT_APP_COGNITO_CLIENT_ID: brieai/config/production:COGNITO_CLIENT_ID
 
 phases:
   pre_build:
