@@ -45,15 +45,18 @@ phases:
       - echo "Pushing frontend image..."
       - docker push $FRONTEND_ECR_URI:$IMAGE_TAG
       - docker push $FRONTEND_ECR_URI:latest
-      - echo "Generating imagedefinitions.json..."
-      - printf '[{"name":"brieai-backend","imageUri":"%s"},{"name":"brieai-frontend","imageUri":"%s"}]' $BACKEND_ECR_URI:$IMAGE_TAG $FRONTEND_ECR_URI:$IMAGE_TAG > imagedefinitions.json
-      - cat imagedefinitions.json
+      - echo "Generating imagedefinitions..."
+      - printf '[{"name":"brieai-backend","imageUri":"%s"}]' $BACKEND_ECR_URI:$IMAGE_TAG > imagedefinitions-backend.json
+      - printf '[{"name":"brieai-frontend","imageUri":"%s"}]' $FRONTEND_ECR_URI:$IMAGE_TAG > imagedefinitions-frontend.json
+      - cat imagedefinitions-backend.json
+      - cat imagedefinitions-frontend.json
       - echo $IMAGE_TAG > image_tag.txt
       - echo "Build completado exitosamente - Tag $IMAGE_TAG"
 
 artifacts:
   files:
-    - imagedefinitions.json
+    - imagedefinitions-backend.json
+    - imagedefinitions-frontend.json
     - image_tag.txt
 
 cache:
