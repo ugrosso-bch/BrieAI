@@ -109,7 +109,9 @@ backend/.env.bak
 # CloudFormation outputs
 cloudformation-outputs.json
 
-# Large media files
+# Infrastructure templates (managed separately)
+Templates CloudFormation/
+Templates Scripts/
 *.mov
 *.mp4
 *.avi
