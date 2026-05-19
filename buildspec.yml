@@ -1,0 +1,100 @@
+version: 0.2
+
+# CodeBuild corre en x86_64 por defecto — correcto para el target de Fargate.
+# Las imágenes se buildean con --platform linux/amd64 para garantizar
+# compatibilidad independientemente de donde se ejecute el build.
+
+env:
+  variables:
+    AWS_REGION: us-east-1
+    AWS_ACCOUNT_ID: "250935839247"
+    BACKEND_REPO: brieai-backend
+    FRONTEND_REPO: brieai-frontend
+  parameter-store:
+    # Variables no-secretas tomadas de SSM Parameter Store
+    REACT_APP_COGNITO_USER_POOL_ID: /brieai/cognito/user_pool_id
+    REACT_APP_COGNITO_CLIENT_ID: /brieai/cognito/client_id
+
+phases:
+  pre_build:
+    commands:
+      - echo "=== Pre-build ==="
+      - echo "Commit SHA: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - BACKEND_ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_REPO
+      - FRONTEND_ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPO
+      - ALB_DNS=$(aws cloudformation describe-stacks --stack-name brieai-ecs --query "Stacks[0].Outputs[?OutputKey=='ALBDnsName'].OutputValue" --output text 2>/dev/null || echo "")
+      - REACT_APP_API_URL="http://$ALB_DNS/api"
+      - echo "Backend ECR: $BACKEND_ECR_URI"
+      - echo "Frontend ECR: $FRONTEND_ECR_URI"
+      - echo "Image tag: $IMAGE_TAG"
+      - echo "API URL: $REACT_APP_API_URL"
+      # Login a ECR
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      # Habilitar buildx para multi-platform (aunque CodeBuild es x86, es buena práctica)
+      - docker buildx create --use --name multiarch-builder || true
+
+  build:
+    commands:
+      - echo "=== Build ==="
+
+      # ─── Backend ───────────────────────────────────────────────────────────
+      - echo "Building backend image..."
+      - docker build
+          --platform linux/amd64
+          --file backend/Dockerfile
+          --tag $BACKEND_ECR_URI:$IMAGE_TAG
+          --tag $BACKEND_ECR_URI:latest
+          --cache-from $BACKEND_ECR_URI:latest
+          ./backend
+
+      # ─── Frontend ──────────────────────────────────────────────────────────
+      - echo "Building frontend image..."
+      - docker build
+          --platform linux/amd64
+          --file frontend/Dockerfile
+          --build-arg REACT_APP_API_URL=$REACT_APP_API_URL
+          --build-arg REACT_APP_COGNITO_USER_POOL_ID=$REACT_APP_COGNITO_USER_POOL_ID
+          --build-arg REACT_APP_COGNITO_CLIENT_ID=$REACT_APP_COGNITO_CLIENT_ID
+          --build-arg REACT_APP_NAME=BrieAI
+          --build-arg REACT_APP_VERSION=$IMAGE_TAG
+          --tag $FRONTEND_ECR_URI:$IMAGE_TAG
+          --tag $FRONTEND_ECR_URI:latest
+          --cache-from $FRONTEND_ECR_URI:latest
+          ./frontend
+
+  post_build:
+    commands:
+      - echo "=== Post-build ==="
+
+      # Push imágenes a ECR
+      - echo "Pushing backend image..."
+      - docker push $BACKEND_ECR_URI:$IMAGE_TAG
+      - docker push $BACKEND_ECR_URI:latest
+
+      - echo "Pushing frontend image..."
+      - docker push $FRONTEND_ECR_URI:$IMAGE_TAG
+      - docker push $FRONTEND_ECR_URI:latest
+
+      # Generar imagedefinitions.json para CodeDeploy/ECS Deploy action
+      # Formato requerido por CodePipeline ECS deploy action
+      - echo "Generating imagedefinitions.json..."
+      - printf '[{"name":"brieai-backend","imageUri":"%s"},{"name":"brieai-frontend","imageUri":"%s"}]'
+          $BACKEND_ECR_URI:$IMAGE_TAG
+          $FRONTEND_ECR_URI:$IMAGE_TAG
+          > imagedefinitions.json
+      - cat imagedefinitions.json
+
+      # Guardar el IMAGE_TAG para referencia
+      - echo $IMAGE_TAG > image_tag.txt
+
+      - echo "Build completado exitosamente - Tag: $IMAGE_TAG"
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - image_tag.txt
+
+cache:
+  paths:
+    - '/root/.npm/**/*'

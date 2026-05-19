@@ -1,0 +1,86 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'BrieAI - ECR Repositories'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: production
+    AllowedValues: [production, staging]
+
+Resources:
+  BackendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: brieai-backend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Mantener solo las ultimas 10 imagenes",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: BrieAI
+        - Key: Environment
+          Value: !Ref Environment
+
+  FrontendRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: brieai-frontend
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Mantener solo las ultimas 10 imagenes",
+                "selection": {
+                  "tagStatus": "untagged",
+                  "countType": "imageCountMoreThan",
+                  "countNumber": 10
+                },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+      Tags:
+        - Key: Project
+          Value: BrieAI
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  BackendRepositoryUri:
+    Value: !GetAtt BackendRepository.RepositoryUri
+    Export:
+      Name: BrieAI-BackendECR-Uri
+
+  FrontendRepositoryUri:
+    Value: !GetAtt FrontendRepository.RepositoryUri
+    Export:
+      Name: BrieAI-FrontendECR-Uri
+
+  BackendRepositoryArn:
+    Value: !GetAtt BackendRepository.Arn
+    Export:
+      Name: BrieAI-BackendECR-Arn
+
+  FrontendRepositoryArn:
+    Value: !GetAtt FrontendRepository.Arn
+    Export:
+      Name: BrieAI-FrontendECR-Arn
