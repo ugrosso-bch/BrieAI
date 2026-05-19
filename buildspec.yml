@@ -40,28 +40,11 @@ phases:
 
       # ─── Backend ───────────────────────────────────────────────────────────
       - echo "Building backend image..."
-      - docker build
-          --platform linux/amd64
-          --file backend/Dockerfile
-          --tag $BACKEND_ECR_URI:$IMAGE_TAG
-          --tag $BACKEND_ECR_URI:latest
-          --cache-from $BACKEND_ECR_URI:latest
-          ./backend
+      - docker build --platform linux/amd64 --file backend/Dockerfile --tag $BACKEND_ECR_URI:$IMAGE_TAG --tag $BACKEND_ECR_URI:latest --cache-from $BACKEND_ECR_URI:latest ./backend
 
       # ─── Frontend ──────────────────────────────────────────────────────────
       - echo "Building frontend image..."
-      - docker build
-          --platform linux/amd64
-          --file frontend/Dockerfile
-          --build-arg REACT_APP_API_URL=$REACT_APP_API_URL
-          --build-arg REACT_APP_COGNITO_USER_POOL_ID=$REACT_APP_COGNITO_USER_POOL_ID
-          --build-arg REACT_APP_COGNITO_CLIENT_ID=$REACT_APP_COGNITO_CLIENT_ID
-          --build-arg REACT_APP_NAME=BrieAI
-          --build-arg REACT_APP_VERSION=$IMAGE_TAG
-          --tag $FRONTEND_ECR_URI:$IMAGE_TAG
-          --tag $FRONTEND_ECR_URI:latest
-          --cache-from $FRONTEND_ECR_URI:latest
-          ./frontend
+      - docker build --platform linux/amd64 --file frontend/Dockerfile --build-arg REACT_APP_API_URL=$REACT_APP_API_URL --build-arg REACT_APP_COGNITO_USER_POOL_ID=$REACT_APP_COGNITO_USER_POOL_ID --build-arg REACT_APP_COGNITO_CLIENT_ID=$REACT_APP_COGNITO_CLIENT_ID --build-arg REACT_APP_NAME=BrieAI --build-arg REACT_APP_VERSION=$IMAGE_TAG --tag $FRONTEND_ECR_URI:$IMAGE_TAG --tag $FRONTEND_ECR_URI:latest --cache-from $FRONTEND_ECR_URI:latest ./frontend
 
   post_build:
     commands:
@@ -79,10 +62,7 @@ phases:
       # Generar imagedefinitions.json para CodeDeploy/ECS Deploy action
       # Formato requerido por CodePipeline ECS deploy action
       - echo "Generating imagedefinitions.json..."
-      - printf '[{"name":"brieai-backend","imageUri":"%s"},{"name":"brieai-frontend","imageUri":"%s"}]'
-          $BACKEND_ECR_URI:$IMAGE_TAG
-          $FRONTEND_ECR_URI:$IMAGE_TAG
-          > imagedefinitions.json
+      - printf '[{"name":"brieai-backend","imageUri":"%s"},{"name":"brieai-frontend","imageUri":"%s"}]' $BACKEND_ECR_URI:$IMAGE_TAG $FRONTEND_ECR_URI:$IMAGE_TAG > imagedefinitions.json
       - cat imagedefinitions.json
 
       # Guardar el IMAGE_TAG para referencia
