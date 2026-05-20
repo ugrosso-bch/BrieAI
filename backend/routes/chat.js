@@ -177,7 +177,7 @@ Respuesta natural:`;
 });
 
 // Analizar datos con Claude
-router.post("/analyze", async, async (req, res) => {
+router.post('/analyze', async (req, res) => {
   try {
     const { query, connectionId } = req.body;
 
@@ -239,7 +239,7 @@ router.post("/analyze", async, async (req, res) => {
 });
 
 // Obtener historial de conversación
-router.get('/history', async async (req, res) => {
+router.get('/history', async (req, res) => {
   try {
     const result = await dynamoService.getConversations(req.user.userId);
     
