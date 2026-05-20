@@ -1,6 +1,5 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
-import GoogleCalendarSetup from '../../components/GoogleCalendarSetup';
 import './Integrations.css';
 
 const Integrations: React.FC = () => {
@@ -87,14 +86,24 @@ const Integrations: React.FC = () => {
             </div>
             
             {integration.name === 'Google Calendar' ? (
-              <GoogleCalendarSetup userId="ugrosso" />
+              <button 
+                className="configure-button"
+                disabled={true}
+                style={{ opacity: 0.4, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
+                title="Próximamente disponible"
+              >
+                <Settings size={16} />
+                Próximamente
+              </button>
             ) : (
               <button 
                 className="configure-button"
-                onClick={() => handleConfigure(integration.name)}
+                disabled={true}
+                style={{ opacity: 0.4, cursor: 'not-allowed', filter: 'grayscale(100%)' }}
+                title="Próximamente disponible"
               >
                 <Settings size={16} />
-                Configurar
+                Próximamente
               </button>
             )}
           </div>
