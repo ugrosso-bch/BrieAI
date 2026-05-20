@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
 const EmailTest: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -11,7 +13,7 @@ const EmailTest: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/email/test', {
+      const response = await fetch(`${API_BASE_URL}/email/test`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +49,7 @@ const EmailTest: React.FC = () => {
     setResult(null);
 
     try {
-      const response = await fetch('http://localhost:3001/api/email/welcome', {
+      const response = await fetch(`${API_BASE_URL}/email/welcome`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

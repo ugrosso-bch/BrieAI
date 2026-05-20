@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, ExternalLink, CheckCircle, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
 interface GoogleCalendarSetupProps {
   userId: string;
 }
@@ -15,7 +17,7 @@ const GoogleCalendarSetup: React.FC<GoogleCalendarSetupProps> = ({ userId }) => 
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch(`http://localhost:3001/api/google/calendar/status/${userId}`);
+      const response = await fetch(`${API_BASE_URL}/google/calendar/status/${userId}`);
       const data = await response.json();
       setStatus(data.authorized ? 'authorized' : 'not_authorized');
     } catch (error) {
@@ -27,7 +29,7 @@ const GoogleCalendarSetup: React.FC<GoogleCalendarSetupProps> = ({ userId }) => 
   const handleAuthorize = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3001/api/google/calendar/auth/${userId}`);
+      const response = await fetch(`${API_BASE_URL}/google/calendar/auth/${userId}`);
       const data = await response.json();
       
       if (data.success) {

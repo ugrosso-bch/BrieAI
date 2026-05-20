@@ -30,9 +30,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, onSwitchToRegister }) 
   const handleGoogleLogin = () => {
     const cognitoDomain = 'https://brieai-auth-1756592755.auth.us-east-1.amazoncognito.com';
     const clientId = '6cp5ja6obsqehb0v725o6u09rb';
-    const redirectUri = encodeURIComponent('http://localhost:3000/auth/callback');
+    // Usar la URL actual del navegador como base para el redirect
+    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback`);
     
-    // Usar token flow para evitar expiración
     const googleAuthUrl = `${cognitoDomain}/oauth2/authorize?identity_provider=Google&redirect_uri=${redirectUri}&response_type=token&client_id=${clientId}&scope=openid+profile+email`;
     
     window.location.href = googleAuthUrl;
