@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Mail, Plus, Trash2, Send, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
 import notificationService, { Subscription } from '../../services/notificationService';
 import EmailTest from '../../components/EmailTest';
+import authService from '../../services/authService';
 import './Notifications.css';
 
 const Notifications: React.FC = () => {
@@ -9,6 +10,9 @@ const Notifications: React.FC = () => {
   const [newEmail, setNewEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const currentUser = authService.getCurrentUser();
+  const userEmail = currentUser?.email || '';
 
   useEffect(() => {
     loadSubscriptions();
@@ -183,7 +187,7 @@ const Notifications: React.FC = () => {
 
         <div className="notification-section">
           <h2>Prueba de SES</h2>
-          <EmailTest />
+          <EmailTest recipientEmail={userEmail} />
         </div>
 
         <div className="notification-section">

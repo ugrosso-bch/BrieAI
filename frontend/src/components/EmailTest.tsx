@@ -3,10 +3,14 @@ import { Mail, Send, CheckCircle, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
-const EmailTest: React.FC = () => {
+interface EmailTestProps {
+  recipientEmail?: string;
+}
+
+const EmailTest: React.FC<EmailTestProps> = ({ recipientEmail }) => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
-  const verifiedEmail = 'ugrosso@bigcheese.com.uy';
+  const verifiedEmail = recipientEmail || 'ugrosso@bigcheese.com.uy';
   const fromEmail = 'noreply@brieagent.com';
 
   const sendTestEmail = async () => {
