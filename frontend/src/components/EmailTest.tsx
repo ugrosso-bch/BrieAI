@@ -7,6 +7,7 @@ const EmailTest: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
   const verifiedEmail = 'ugrosso@bigcheese.com.uy';
+  const fromEmail = 'noreply@brieagent.com';
 
   const sendTestEmail = async () => {
     setLoading(true);
@@ -109,19 +110,11 @@ const EmailTest: React.FC = () => {
         borderRadius: '8px',
         textAlign: 'center'
       }}>
-        <p style={{ 
-          margin: 0, 
-          color: '#1A1A1A',
-          fontSize: '16px'
-        }}>
+        <p style={{ margin: 0, color: '#1A1A1A', fontSize: '16px' }}>
           📧 Enviando a: <strong>{verifiedEmail}</strong>
         </p>
-        <p style={{ 
-          margin: '5px 0 0 0', 
-          color: '#666',
-          fontSize: '14px'
-        }}>
-          (Dirección verificada en SES)
+        <p style={{ margin: '5px 0 0 0', color: '#666', fontSize: '14px' }}>
+          (Dirección verificada en SES — modo sandbox)
         </p>
       </div>
 
@@ -212,7 +205,7 @@ const EmailTest: React.FC = () => {
         color: '#666'
       }}>
         <strong>Configuración SES:</strong><br />
-        Desde: {verifiedEmail}<br />
+        Desde: {fromEmail}<br />
         Para: {verifiedEmail}<br />
         Región: us-east-1
       </div>
