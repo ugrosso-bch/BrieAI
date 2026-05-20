@@ -151,15 +151,15 @@ class DynamoService {
   // Conexiones de Base de Datos
   async saveDbConnection(userId, connectionData) {
     try {
-      // Usar 'id' como partition key (consistente con lo que lee la Lambda)
+      // La tabla usa userId (HASH) + connectionId (RANGE)
       const connectionId = connectionData.id || connectionData.connectionId || uuidv4();
       
       const command = new PutCommand({
         TableName: this.tables.dbConnections,
         Item: {
-          id: connectionId,         // Partition key principal
-          connectionId,             // Alias para retrocompatibilidad
-          userId,
+          userId: userId || 'guest',   // HASH key
+          connectionId,                 // RANGE key
+          id: connectionId,             // Alias para compatibilidad con la Lambda
           ...connectionData,
           createdAt: connectionData.createdAt || new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -220,13 +220,37 @@ class DynamoService {
   }
 
   async deleteDbConnection(userId, connectionId) {
-    // Método delegado a la versión actualizada arriba (ya definida)
     try {
-      const command = new DeleteCommand({
+      // Primero intentar con el userId que tenemos
+      const knownUserIds = [userId, 'guest'];
+      
+      for (const uid of knownUserIds) {
+        if (!uid) continue;
+        try {
+          const command = new DeleteCommand({
+            TableName: this.tables.dbConnections,
+            Key: { userId: uid, connectionId }
+          });
+          await this.docClient.send(command);
+        } catch (e) {
+          // ignorar errores individuales
+        }
+      }
+      
+      // Si no encontramos con userId conocido, hacer scan y eliminar
+      const scanResult = await this.docClient.send(new ScanCommand({
         TableName: this.tables.dbConnections,
-        Key: { id: connectionId }
-      });
-      await this.docClient.send(command);
+        FilterExpression: 'connectionId = :cid OR id = :cid',
+        ExpressionAttributeValues: { ':cid': connectionId }
+      }));
+      
+      for (const item of (scanResult.Items || [])) {
+        await this.docClient.send(new DeleteCommand({
+          TableName: this.tables.dbConnections,
+          Key: { userId: item.userId, connectionId: item.connectionId }
+        }));
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Error eliminando conexión DB:', error);
