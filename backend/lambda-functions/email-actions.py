@@ -6,7 +6,7 @@ def lambda_handler(event, context):
     print(f"Received event: {json.dumps(event)}")
     
     ses_client = boto3.client('ses', region_name='us-east-1')
-    from_email = 'ugrosso@bigcheese.com.uy'
+    from_email = os.environ.get('SES_FROM_EMAIL', 'noreply@brieagent.com')
     
     try:
         action_group = event.get('actionGroup', '')
