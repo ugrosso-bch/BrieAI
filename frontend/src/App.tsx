@@ -14,7 +14,7 @@ import './App.css';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [showAuthModal, setShowAuthModal] = useState(true); // Abre directo al entrar sin sesión
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Estado de conversación persistido a nivel App para sobrevivir la navegación
