@@ -18,14 +18,7 @@ phases:
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
       - BACKEND_ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$BACKEND_REPO
       - FRONTEND_ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$FRONTEND_REPO
-      - ALB_DNS=$(aws cloudformation describe-stacks --stack-name brieai-ecs --query "Stacks[0].Outputs[?OutputKey=='ALBDnsName'].OutputValue" --output text 2>/dev/null || echo "localhost")
-      - CF_DOMAIN=$(aws cloudformation describe-stacks --stack-name brieai-cloudfront --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDomain'].OutputValue" --output text 2>/dev/null || echo "")
-      - |
-        if [ -n "$CF_DOMAIN" ]; then
-          REACT_APP_API_URL="$CF_DOMAIN/api"
-        else
-          REACT_APP_API_URL="$ALB_DNS/api"
-        fi
+      - REACT_APP_API_URL=https://brieagent.com/api
       - echo "Backend ECR $BACKEND_ECR_URI"
       - echo "Frontend ECR $FRONTEND_ECR_URI"
       - echo "Image tag $IMAGE_TAG"
