@@ -5,7 +5,29 @@ const s3Service = require('../services/s3Service');
 const syncService = require('../services/knowledgeBaseSyncService');
 const dynamoService = require('../services/dynamoService');
 const notificationService = require('../services/notificationService');
-const { authenticateToken } = require('../middleware/auth');
+const { optionalAuth } = require('../middleware/auth');
+
+// Middleware opcional: autenticar si hay token, continuar de todos modos
+const optionalAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const accessToken = authHeader.substring(7);
+      const authService = require('../services/authService');
+      const result = await authService.getUser(accessToken);
+      if (result.success) {
+        req.user = result.user;
+      }
+    }
+    if (!req.user) {
+      req.user = { userId: 'guest' };
+    }
+    next();
+  } catch (error) {
+    req.user = { userId: 'guest' };
+    next();
+  }
+};
 
 // Configuración de multer para manejo de archivos
 const storage = multer.memoryStorage();
@@ -37,7 +59,7 @@ const upload = multer({
 });
 
 // Obtener todos los archivos de la base de conocimiento
-router.get('/files', authenticateToken, async (req, res) => {
+router.get('/files', optionalAuth, async (req, res) => {
   try {
     const result = await s3Service.listFiles(req.user.userId);
     res.json(result);
@@ -51,7 +73,7 @@ router.get('/files', authenticateToken, async (req, res) => {
 });
 
 // Subir archivo a la base de conocimiento
-router.post('/upload', authenticateToken, (req, res) => {
+router.post('/upload', optionalAuth, (req, res) => {
   console.log('Iniciando upload...');
   
   upload.single('file')(req, res, async (err) => {
@@ -150,7 +172,7 @@ router.post('/upload', authenticateToken, (req, res) => {
 });
 
 // Obtener contenido de un archivo específico
-router.get('/files/:key', authenticateToken, async (req, res) => {
+router.get('/files/:key', optionalAuth, async (req, res) => {
   try {
     const key = decodeURIComponent(req.params.key);
     const result = await s3Service.getFile(key, req.user.userId);
@@ -176,7 +198,7 @@ router.get('/files/:key', authenticateToken, async (req, res) => {
 });
 
 // Eliminar archivo de la base de conocimiento
-router.delete('/files/:key', authenticateToken, async (req, res) => {
+router.delete('/files/:key', optionalAuth, async (req, res) => {
   try {
     const key = decodeURIComponent(req.params.key);
     const fileName = key.split('/').pop(); // Extraer nombre del archivo del key
@@ -208,7 +230,7 @@ router.delete('/files/:key', authenticateToken, async (req, res) => {
 });
 
 // Obtener estadísticas de la base de conocimiento
-router.get('/stats', authenticateToken, async (req, res) => {
+router.get('/stats', optionalAuth, async (req, res) => {
   try {
     const filesResult = await s3Service.listFiles(req.user.userId);
     
@@ -246,7 +268,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
 });
 
 // Buscar en la base de conocimiento
-router.post('/search', authenticateToken, async (req, res) => {
+router.post('/search', optionalAuth, async (req, res) => {
   try {
     const { query } = req.body;
     
@@ -306,7 +328,7 @@ router.post('/search', authenticateToken, async (req, res) => {
 });
 
 // Obtener todo el contenido de la base de conocimiento (para el chatbot)
-router.get('/content', authenticateToken, async (req, res) => {
+router.get('/content', optionalAuth, async (req, res) => {
   try {
     const result = await s3Service.getKnowledgeBaseContent(req.user.userId);
     res.json(result);
