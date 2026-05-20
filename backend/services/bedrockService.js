@@ -305,7 +305,19 @@ class BedrockService {
     try {
       if (apiPath === '/send-email') {
         const { to_email, recipient, subject, content } = params;
-        const toAddress = to_email || recipient || process.env.SES_FROM_EMAIL;
+        const toAddress = to_email || recipient;
+
+        // Si no hay destinatario, devolver error indicativo para que el agente lo solicite
+        if (!toAddress) {
+          return {
+            statusCode: 400,
+            body: {
+              error: 'Se requiere la dirección de email del destinatario. Por favor solicita al usuario su email antes de enviar.',
+              requiresEmail: true
+            }
+          };
+        }
+
         const result = await sesService.sendEmail({
           to: toAddress,
           subject: subject || 'Información de BrieAI',
@@ -316,23 +328,34 @@ class BedrockService {
                 <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px;">
                   <pre style="white-space: pre-wrap; font-family: inherit; color: #1A1A1A;">${content || ''}</pre>
                 </div>
-                <p style="color: #666; font-size: 14px; margin-top: 20px;">Enviado por <strong style="color: #ABA0FB;">BrieAI</strong></p>
+                <p style="color: #666; font-size: 14px; margin-top: 20px;">Enviado por <strong style="color: #ABA0FB;">BrieAI</strong> desde noreply@brieagent.com</p>
               </div>
             </div>
           `,
           textBody: content || subject
         });
-        return { statusCode: 200, body: { success: true, message: `Email enviado a ${toAddress}`, messageId: result.messageId } };
+        return { statusCode: 200, body: { success: true, message: `Email enviado exitosamente a ${toAddress}`, messageId: result.messageId } };
       }
 
       if (apiPath === '/send-analysis-report') {
         const { to_email, recipient, analysis_data, insights } = params;
-        const toAddress = to_email || recipient || process.env.SES_FROM_EMAIL;
+        const toAddress = to_email || recipient;
+
+        if (!toAddress) {
+          return {
+            statusCode: 400,
+            body: {
+              error: 'Se requiere la dirección de email del destinatario. Por favor solicita al usuario su email antes de enviar.',
+              requiresEmail: true
+            }
+          };
+        }
+
         const result = await sesService.sendAnalysisReport(toAddress, {
           summary: analysis_data || '',
           insights: insights || ''
         });
-        return { statusCode: 200, body: { success: true, message: `Reporte enviado a ${toAddress}`, messageId: result.messageId } };
+        return { statusCode: 200, body: { success: true, message: `Reporte enviado exitosamente a ${toAddress}`, messageId: result.messageId } };
       }
 
       return { statusCode: 400, body: { error: `Email action desconocida: ${apiPath}` } };

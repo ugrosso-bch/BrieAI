@@ -21,9 +21,9 @@ const emailSchema = {
     '/send-email': {
       post: {
         operationId: 'sendEmail',
-        description: 'Envía un correo electrónico con información o datos. Usar cuando el usuario pida enviar algo por email/correo.',
+        description: 'Envía un correo electrónico con información o datos al destinatario indicado. IMPORTANTE: si el usuario no especificó su email, preguntárselo antes de llamar esta acción. NUNCA usar noreply@brieagent.com como destinatario.',
         parameters: [
-          { name: 'to_email', in: 'query', description: 'Email del destinatario. Default: ugrosso@bigcheese.com.uy', required: false, schema: { type: 'string' } },
+          { name: 'to_email', in: 'query', description: 'Dirección de email del destinatario. OBLIGATORIO: debe ser el email del usuario u otro destinatario explícitamente indicado. Nunca usar la dirección del remitente.', required: true, schema: { type: 'string' } },
           { name: 'subject', in: 'query', description: 'Asunto del correo', required: true, schema: { type: 'string' } },
           { name: 'content', in: 'query', description: 'Contenido del correo con los datos o información a enviar', required: true, schema: { type: 'string' } }
         ],
@@ -33,9 +33,9 @@ const emailSchema = {
     '/send-analysis-report': {
       post: {
         operationId: 'sendAnalysisReport',
-        description: 'Envía un reporte de análisis de datos por correo con formato HTML. Usar para resultados de análisis o consultas de BD.',
+        description: 'Envía un reporte de análisis de datos por correo con formato HTML. IMPORTANTE: si el usuario no especificó su email, preguntárselo antes de llamar esta acción. NUNCA usar noreply@brieagent.com como destinatario.',
         parameters: [
-          { name: 'to_email', in: 'query', description: 'Email destinatario. Default: ugrosso@bigcheese.com.uy', required: false, schema: { type: 'string' } },
+          { name: 'to_email', in: 'query', description: 'Dirección de email del destinatario. OBLIGATORIO: debe ser el email del usuario u otro destinatario explícitamente indicado. Nunca usar la dirección del remitente.', required: true, schema: { type: 'string' } },
           { name: 'analysis_data', in: 'query', description: 'Datos del análisis a incluir en el reporte', required: true, schema: { type: 'string' } },
           { name: 'insights', in: 'query', description: 'Conclusiones o recomendaciones del análisis', required: false, schema: { type: 'string' } }
         ],
