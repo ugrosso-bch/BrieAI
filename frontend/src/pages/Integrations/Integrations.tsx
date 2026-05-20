@@ -19,7 +19,7 @@ const Integrations: React.FC = () => {
     {
       id: 'microsoft-teams',
       name: 'Microsoft Teams',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Microsoft_Office_Teams_%282018%E2%80%93present%29.svg/512px-Microsoft_Office_Teams_%282018%E2%80%93present%29.svg.png',
+      logo: 'https://img.icons8.com/color/96/microsoft-teams.png',
       description: 'Conecta con equipos y chats'
     },
     {
