@@ -5,7 +5,6 @@ const s3Service = require('../services/s3Service');
 const syncService = require('../services/knowledgeBaseSyncService');
 const dynamoService = require('../services/dynamoService');
 const notificationService = require('../services/notificationService');
-const { optionalAuth } = require('../middleware/auth');
 
 // Middleware opcional: autenticar si hay token, continuar de todos modos
 const optionalAuth = async (req, res, next) => {
