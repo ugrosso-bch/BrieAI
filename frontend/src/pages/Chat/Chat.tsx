@@ -167,10 +167,6 @@ const Chat: React.FC<ChatProps> = ({
         </div>
         
         <div className="chat-controls">
-          <div className="agent-status">
-            <Zap size={16} />
-            <span>BrieAI Agent Activo</span>
-          </div>
         </div>
       </div>
 
