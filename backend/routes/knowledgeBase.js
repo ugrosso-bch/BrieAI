@@ -37,22 +37,22 @@ const upload = multer({
     fieldSize: 1024 * 1024 // 1MB para campos de texto
   },
   fileFilter: (req, file, cb) => {
-    console.log('Archivo recibido en fileFilter:', file);
-    // Permitir solo ciertos tipos de archivo
+    console.log('Archivo recibido:', file.originalname, 'tipo:', file.mimetype);
+    // Permitir tipos comunes de documentos y texto
     const allowedTypes = [
-      'text/plain',
-      'text/csv',
-      'application/json',
-      'application/pdf',
-      'text/markdown',
+      'text/plain', 'text/csv', 'text/markdown', 'text/x-markdown',
+      'text/x-rst', 'text/html',
+      'application/json', 'application/pdf',
       'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/octet-stream'
     ];
-    
-    if (allowedTypes.includes(file.mimetype)) {
+    if (allowedTypes.includes(file.mimetype) || file.mimetype.startsWith('text/')) {
       cb(null, true);
     } else {
-      cb(new Error('Tipo de archivo no permitido'), false);
+      cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}`), false);
     }
   }
 });
